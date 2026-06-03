@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rosnicka 3.0</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <header>
+    <div class="header-inner">
+      <h1>Rosnicka 3.0</h1>
+      <div id="connection-status" class="status status-connecting">
+        <span class="status-dot"></span>
+        <span class="status-text">Pripojuji...</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="floorplan-section">
+      <h2>Plan budovy</h2>
+      <!--
+        Upravte floor plan dle skutecne dispozice.
+        Senzory se vykreslují dynamicky dle SENSOR_CONFIG v app.js.
+
+        ViewBox: 0 0 500 340
+        Místnosti (x, y, w, h):
+          Obyvak:   0,   0, 250, 200
+          Kuchyne: 250,   0, 250, 130
+          Chodba:  250, 130, 130,  70
+          Koupelna:380, 130, 120,  70
+          Loznice:   0, 200, 500, 140
+      -->
+      <div class="floorplan-wrap">
+        <svg id="floorplan" viewBox="0 0 500 340" xmlns="http://www.w3.org/2000/svg">
+
+          <!-- Mistnosti -->
+          <rect class="room" x="0"   y="0"   width="250" height="200"/>
+          <rect class="room" x="250" y="0"   width="250" height="130"/>
+          <rect class="room" x="250" y="130" width="130" height="70"/>
+          <rect class="room" x="380" y="130" width="120" height="70"/>
+          <rect class="room" x="0"   y="200" width="500" height="140"/>
+
+          <!-- Interiérové zdi -->
+          <line class="wall" x1="250" y1="0"   x2="250" y2="200"/>
+          <line class="wall" x1="250" y1="130" x2="500" y2="130"/>
+          <line class="wall" x1="380" y1="130" x2="380" y2="200"/>
+          <line class="wall" x1="0"   y1="200" x2="500" y2="200"/>
+
+          <!-- Vnejsi zeď -->
+          <rect class="outer-wall" x="0" y="0" width="500" height="340"/>
+
+          <!-- Popisky místností -->
+          <text class="room-label" x="125" y="105">Obyvak</text>
+          <text class="room-label" x="375" y="70">Kuchyne</text>
+          <text class="room-label small" x="315" y="170">Chodba</text>
+          <text class="room-label small" x="440" y="170">Koupelna</text>
+          <text class="room-label" x="250" y="272">Loznice</text>
+
+          <!-- Senzory se pridaji dynamicky pres app.js -->
+
+        </svg>
+      </div>
+    </section>
+
+    <section class="cards-section">
+      <h2>Senzory</h2>
+      <div id="sensors-list" class="sensors-grid">
+        <p class="no-data">Cekam na data...</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>Rosnicka 3.0</span>
+    <span id="last-update"></span>
+  </footer>
+
+  <!-- MQTT.js z CDN -->
+  <script src="https://unpkg.com/mqtt@5/dist/mqtt.min.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

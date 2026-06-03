@@ -1,0 +1,305 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg: #f0f2f5;
+  --surface: #ffffff;
+  --border: #dde1e7;
+  --text: #1a1d23;
+  --text-muted: #6b7280;
+  --accent: #2563eb;
+  --green: #16a34a;
+  --orange: #d97706;
+  --red: #dc2626;
+  --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Header ── */
+header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 1.5rem;
+  height: 56px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: var(--shadow);
+}
+
+.header-inner {
+  max-width: 960px;
+  margin: 0 auto;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+h1 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+  color: var(--text);
+}
+
+/* ── Status badge ── */
+.status {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  font-size: .8rem;
+  font-weight: 600;
+  padding: .3rem .7rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-online  { background: #dcfce7; border-color: #86efac; color: var(--green); }
+.status-online  .status-dot { background: var(--green); }
+
+.status-offline { background: #fee2e2; border-color: #fca5a5; color: var(--red); }
+.status-offline .status-dot { background: var(--red); }
+
+.status-connecting { background: #fef9c3; border-color: #fde047; color: var(--orange); }
+.status-connecting .status-dot {
+  background: var(--orange);
+  animation: blink 1s ease-in-out infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.2; }
+}
+
+/* ── Main ── */
+main {
+  max-width: 960px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 1.5rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+h2 {
+  font-size: .75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--text-muted);
+  margin-bottom: .75rem;
+}
+
+/* ── Floor plan ── */
+.floorplan-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem;
+  box-shadow: var(--shadow);
+}
+
+.floorplan-wrap {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+#floorplan {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Floor plan elements */
+.room {
+  fill: #f3f6fb;
+  stroke: none;
+}
+
+.room:nth-child(1) { fill: #eff8ef; } /* Obyvak  - zelenkava */
+.room:nth-child(2) { fill: #eff4fb; } /* Kuchyne - modrá    */
+.room:nth-child(3) { fill: #fdf8ed; } /* Chodba  - zluta    */
+.room:nth-child(4) { fill: #edfafa; } /* Koupelna- cyan     */
+.room:nth-child(5) { fill: #fdf2f2; } /* Loznice - ruzova   */
+
+.wall {
+  stroke: #9ca3af;
+  stroke-width: 1.5;
+}
+
+.outer-wall {
+  fill: none;
+  stroke: #374151;
+  stroke-width: 3;
+  rx: 4;
+}
+
+.room-label {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  fill: #6b7280;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  pointer-events: none;
+  user-select: none;
+}
+
+.room-label.small { font-size: 10px; }
+
+/* ── Sensor marker (SVG) ── */
+.sensor-marker {
+  cursor: default;
+}
+
+.sensor-marker .pulse-ring {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.sensor-marker.sensor-online .pulse-ring {
+  animation: svgPulse 2.4s ease-out infinite;
+}
+
+@keyframes svgPulse {
+  0%   { transform: scale(0.9); opacity: .7; }
+  70%  { transform: scale(2.2); opacity: 0;  }
+  100% { transform: scale(2.2); opacity: 0;  }
+}
+
+.sensor-marker.sensor-stale .sensor-dot { fill: var(--orange) !important; }
+.sensor-marker.sensor-offline .sensor-dot { fill: #9ca3af; }
+
+.sensor-temp {
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.sensor-hum,
+.sensor-name {
+  font-size: 10px;
+}
+
+/* ── Sensor cards ── */
+.cards-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem;
+  box-shadow: var(--shadow);
+}
+
+.sensors-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.no-data {
+  color: var(--text-muted);
+  font-size: .875rem;
+  grid-column: 1 / -1;
+}
+
+.sensor-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  transition: border-color .2s;
+}
+
+.sensor-card.card-online { border-left: 3px solid var(--green); }
+.sensor-card.card-stale  { border-left: 3px solid var(--orange); }
+.sensor-card.card-offline { border-left: 3px solid #9ca3af; }
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.card-name {
+  font-weight: 700;
+  font-size: .9rem;
+}
+
+.card-id {
+  font-size: .7rem;
+  color: var(--text-muted);
+  font-family: monospace;
+}
+
+.card-values {
+  display: flex;
+  gap: 1rem;
+  align-items: baseline;
+}
+
+.value-temp {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+}
+
+.value-hum {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.unit {
+  font-size: .65em;
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-left: 1px;
+}
+
+.card-time {
+  font-size: .7rem;
+  color: var(--text-muted);
+}
+
+/* ── Footer ── */
+footer {
+  text-align: center;
+  padding: 1rem;
+  font-size: .75rem;
+  color: var(--text-muted);
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+
+/* ── Responsive ── */
+@media (max-width: 600px) {
+  main { padding: 1rem; }
+  .sensors-grid { grid-template-columns: 1fr 1fr; }
+}
