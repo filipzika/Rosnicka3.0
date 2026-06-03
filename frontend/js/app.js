@@ -363,7 +363,8 @@ function connectMQTT() {
       if (!deviceId) return;
 
       const data = JSON.parse(message.toString());
-      data.ts = Date.now();
+      // ts z ESP je Unix sekund (UTC) – prevedeme na ms; fallback = nyni
+      data.ts = data.ts ? data.ts * 1000 : Date.now();
 
       sensorData[deviceId] = data;
       localStorage.setItem(`rosnicka-${deviceId}`, JSON.stringify(data));
@@ -372,7 +373,7 @@ function connectMQTT() {
       updateCard(deviceId, data);
 
       document.getElementById('last-update').textContent =
-        `Posledni prijem: ${new Date().toLocaleTimeString('cs-CZ')}`;
+        `Posledni upload: ${new Date(data.ts).toLocaleTimeString('cs-CZ')}`;
     } catch (e) {
       console.warn('Parse error:', e);
     }

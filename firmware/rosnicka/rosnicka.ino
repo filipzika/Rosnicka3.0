@@ -5,12 +5,15 @@
  *   - Adafruit AHTX0
  *   - WiFiManager (by tzapu)
  *   - PubSubClient (by Nick O'Leary)
+ *   - NTPClient (by Fabrice Weinberg)
  */
 
 #include <Wire.h>
 #include <Adafruit_AHTX0.h>
 #include <ESP8266WiFi.h>
 #include <WiFiManager.h>
+#include <WiFiUDP.h>
+#include <NTPClient.h>
 #include <PubSubClient.h>
 
 // ===== Konfigurace =====
@@ -27,6 +30,9 @@
 Adafruit_AHTX0 aht;
 WiFiClient     wifiClient;
 PubSubClient   mqtt(wifiClient);
+
+WiFiUDP   ntpUDP;
+NTPClient ntp(ntpUDP, "pool.ntp.org", 0, 60000); // UTC, sync kazd. 60s
 
 unsigned long lastSend = 0;
 
@@ -78,6 +84,11 @@ void setup() {
   Serial.println(WiFi.localIP());
   digitalWrite(LED_BUILTIN, LOW);
 
+  ntp.begin();
+  ntp.update();
+  Serial.print("NTP cas: ");
+  Serial.println(ntp.getFormattedTime());
+
   mqtt.setServer(MQTT_BROKER, MQTT_PORT);
   mqtt.setKeepAlive(60);
 }
@@ -88,6 +99,8 @@ void loop() {
     delay(1000);
     ESP.restart();
   }
+
+  ntp.update();
 
   if (!mqtt.connected()) reconnectMQTT();
   mqtt.loop();
@@ -113,10 +126,12 @@ void loop() {
     Serial.print(h, 1);
     Serial.println(" %");
 
-    char payload[96];
+    unsigned long ts = ntp.getEpochTime(); // Unix timestamp UTC
+
+    char payload[128];
     snprintf(payload, sizeof(payload),
-      "{\"id\":\"%s\",\"t\":%.1f,\"h\":%.1f}",
-      DEVICE_ID, t, h
+      "{\"id\":\"%s\",\"t\":%.1f,\"h\":%.1f,\"ts\":%lu}",
+      DEVICE_ID, t, h, ts
     );
 
     // retained=true: broker ulozi posledni hodnotu pro nove klienty
