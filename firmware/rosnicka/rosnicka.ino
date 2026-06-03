@@ -18,7 +18,7 @@
 #define MQTT_BROKER     "broker.emqx.io"
 #define MQTT_PORT       1883
 #define MQTT_TOPIC      "rosnicka/" DEVICE_ID "/sensors"
-#define SEND_INTERVAL   15000UL
+#define SEND_INTERVAL   60000UL
 
 // I2C piny na ESP-12F: SDA=GPIO4(D2), SCL=GPIO5(D1)
 #define SDA_PIN 4

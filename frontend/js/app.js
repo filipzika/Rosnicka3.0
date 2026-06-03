@@ -29,6 +29,16 @@ const SVG_NS         = 'http://www.w3.org/2000/svg';
 // ── Stav ─────────────────────────────────────────────────────
 const sensorData = {};  // { device_id: { id, t, h, ts } }
 
+// Ulozene polohy markeru (pretezeno pres SENSOR_CONFIG)
+const savedPositions = (() => {
+  try { return JSON.parse(localStorage.getItem('rosnicka-positions') || '{}'); }
+  catch (_) { return {}; }
+})();
+
+// Edit mode
+let editMode = false;
+let drag = { active: false, target: null, offsetX: 0, offsetY: 0 };
+
 // ── Helpers ──────────────────────────────────────────────────
 function svgEl(tag, attrs) {
   const el = document.createElementNS(SVG_NS, tag);
@@ -56,14 +66,104 @@ function freshness(ts) {
   return `pred ${Math.round(age / 3_600_000)} h`;
 }
 
+// ── Drag helpers ─────────────────────────────────────────────
+function getSvgPoint(svg, clientX, clientY) {
+  const pt = svg.createSVGPoint();
+  pt.x = clientX;
+  pt.y = clientY;
+  return pt.matrixTransform(svg.getScreenCTM().inverse());
+}
+
+function getMarkerPos(g) {
+  const m = g.getAttribute('transform').match(/translate\(([^,\s]+)[,\s]+([^)]+)\)/);
+  return m ? { x: parseFloat(m[1]), y: parseFloat(m[2]) } : { x: 0, y: 0 };
+}
+
+function toggleEditMode() {
+  editMode = !editMode;
+  const svg  = document.getElementById('floorplan');
+  const btn  = document.getElementById('edit-btn');
+  const hint = document.getElementById('edit-hint');
+
+  if (editMode) {
+    svg.classList.add('edit-mode');
+    btn.textContent = 'Hotovo';
+    btn.classList.add('active');
+    hint.classList.add('visible');
+  } else {
+    svg.classList.remove('edit-mode');
+    btn.textContent = 'Upravit polohu';
+    btn.classList.remove('active');
+    hint.classList.remove('visible');
+    if (drag.target) drag.target.classList.remove('dragging');
+    drag = { active: false, target: null, offsetX: 0, offsetY: 0 };
+  }
+}
+
+function initDrag(svg) {
+  const startDrag = (g, clientX, clientY) => {
+    const pos = getMarkerPos(g);
+    const pt  = getSvgPoint(svg, clientX, clientY);
+    drag = { active: true, target: g, offsetX: pt.x - pos.x, offsetY: pt.y - pos.y };
+    g.classList.add('dragging');
+  };
+
+  const moveDrag = (clientX, clientY) => {
+    if (!drag.active) return;
+    const pt = getSvgPoint(svg, clientX, clientY);
+    const nx = (pt.x - drag.offsetX).toFixed(1);
+    const ny = (pt.y - drag.offsetY).toFixed(1);
+    drag.target.setAttribute('transform', `translate(${nx}, ${ny})`);
+  };
+
+  const endDrag = () => {
+    if (!drag.active) return;
+    const g        = drag.target;
+    const deviceId = g.id.replace('sensor-', '');
+    savedPositions[deviceId] = getMarkerPos(g);
+    localStorage.setItem('rosnicka-positions', JSON.stringify(savedPositions));
+    g.classList.remove('dragging');
+    drag = { active: false, target: null, offsetX: 0, offsetY: 0 };
+  };
+
+  svg.addEventListener('mousedown', (e) => {
+    if (!editMode) return;
+    const g = e.target.closest('.sensor-marker');
+    if (!g) return;
+    e.preventDefault();
+    startDrag(g, e.clientX, e.clientY);
+  });
+
+  svg.addEventListener('mousemove', (e) => moveDrag(e.clientX, e.clientY));
+  svg.addEventListener('mouseup',    endDrag);
+  svg.addEventListener('mouseleave', endDrag);
+
+  svg.addEventListener('touchstart', (e) => {
+    if (!editMode) return;
+    const g = e.target.closest('.sensor-marker');
+    if (!g) return;
+    e.preventDefault();
+    startDrag(g, e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: false });
+
+  svg.addEventListener('touchmove', (e) => {
+    if (!drag.active) return;
+    e.preventDefault();
+    moveDrag(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: false });
+
+  svg.addEventListener('touchend', endDrag);
+}
+
 // ── Floor plan – inicializace markerů ────────────────────────
 function initFloorplan() {
   const svg = document.getElementById('floorplan');
 
   for (const [deviceId, cfg] of Object.entries(SENSOR_CONFIG)) {
+    const pos = savedPositions[deviceId] ?? { x: cfg.x, y: cfg.y };
     const g = svgEl('g', {
       id: `sensor-${deviceId}`,
-      transform: `translate(${cfg.x}, ${cfg.y})`,
+      transform: `translate(${pos.x}, ${pos.y})`,
     });
     g.classList.add('sensor-marker', 'sensor-offline');
 
@@ -237,6 +337,10 @@ function startFreshnessTimer() {
 document.addEventListener('DOMContentLoaded', () => {
   loadSaved();
   initFloorplan();
+
+  const svg = document.getElementById('floorplan');
+  initDrag(svg);
+  document.getElementById('edit-btn').addEventListener('click', toggleEditMode);
 
   // Zobraz ulozena data pred tim nez se MQTT pripoji
   for (const [id, data] of Object.entries(sensorData)) {

@@ -111,6 +111,38 @@ h2 {
   margin-bottom: .75rem;
 }
 
+/* ── Section header ── */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: .75rem;
+}
+.section-header h2 { margin-bottom: 0; }
+
+.btn-edit {
+  font-size: .75rem;
+  font-weight: 600;
+  padding: .3rem .8rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color .15s, color .15s, background .15s;
+}
+.btn-edit:hover  { border-color: var(--accent); color: var(--accent); }
+.btn-edit.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+.edit-hint {
+  font-size: .75rem;
+  color: var(--accent);
+  text-align: center;
+  margin-bottom: .6rem;
+  display: none;
+}
+.edit-hint.visible { display: block; }
+
 /* ── Floor plan ── */
 .floorplan-section {
   background: var(--surface);
@@ -167,6 +199,16 @@ h2 {
 }
 
 .room-label.small { font-size: 10px; }
+
+/* ── Edit mode ── */
+#floorplan.edit-mode {
+  outline: 2px dashed var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+.edit-mode .sensor-marker        { cursor: grab; }
+.edit-mode .sensor-marker:active { cursor: grabbing; }
+.sensor-marker.dragging          { opacity: .8; filter: drop-shadow(0 2px 8px rgba(0,0,0,.25)); }
 
 /* ── Sensor marker (SVG) ── */
 .sensor-marker {

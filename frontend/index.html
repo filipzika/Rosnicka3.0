@@ -20,7 +20,10 @@
 
   <main>
     <section class="floorplan-section">
-      <h2>Plan budovy</h2>
+      <div class="section-header">
+        <h2>Plan budovy</h2>
+        <button id="edit-btn" class="btn-edit">Upravit polohu</button>
+      </div>
       <!--
         Upravte floor plan dle skutecne dispozice.
         Senzory se vykreslují dynamicky dle SENSOR_CONFIG v app.js.
@@ -33,6 +36,7 @@
           Koupelna:380, 130, 120,  70
           Loznice:   0, 200, 500, 140
       -->
+      <p id="edit-hint" class="edit-hint">Pretahujte senzory na spravne misto</p>
       <div class="floorplan-wrap">
         <svg id="floorplan" viewBox="0 0 500 340" xmlns="http://www.w3.org/2000/svg">
 
