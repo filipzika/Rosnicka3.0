@@ -36,7 +36,7 @@
           Koupelna:380, 130, 120,  70
           Loznice:   0, 200, 500, 140
       -->
-      <p id="edit-hint" class="edit-hint">Pretahujte senzory na spravne misto</p>
+      <p id="edit-hint" class="edit-hint">Pretahujte senzory na spravne misto &nbsp;·&nbsp; Kliknete na nazev karty pro prejmenování</p>
       <div class="floorplan-wrap">
         <svg id="floorplan" viewBox="0 0 500 340" xmlns="http://www.w3.org/2000/svg">
 
@@ -78,8 +78,19 @@
   </main>
 
   <footer>
-    <span>Rosnicka 3.0</span>
-    <span id="last-update"></span>
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <img src="img/forestbit-logo.png" alt="ForestBit Electronics" class="footer-logo">
+      </div>
+      <div class="footer-center">
+        <span id="last-update"></span>
+      </div>
+      <div class="footer-copy">
+        <p>&copy; 2025 ForestBit Electronics. Vsechna prava vyhrazena.</p>
+        <p class="footer-disclaimer">Tento software je interní nástroj společnosti ForestBit Electronics.
+        Neautorizované použití, kopírování nebo distribuce je zakázána.</p>
+      </div>
+    </div>
   </footer>
 
   <!-- MQTT.js z CDN -->

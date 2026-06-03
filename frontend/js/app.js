@@ -35,6 +35,12 @@ const savedPositions = (() => {
   catch (_) { return {}; }
 })();
 
+// Ulozene nazvy zarizeni
+const savedLabels = (() => {
+  try { return JSON.parse(localStorage.getItem('rosnicka-labels') || '{}'); }
+  catch (_) { return {}; }
+})();
+
 // Edit mode
 let editMode = false;
 let drag = { active: false, target: null, offsetX: 0, offsetY: 0 };
@@ -64,6 +70,46 @@ function freshness(ts) {
   if (age < 60_000)   return `pred ${Math.round(age / 1000)} s`;
   if (age < 3_600_000) return `pred ${Math.round(age / 60_000)} min`;
   return `pred ${Math.round(age / 3_600_000)} h`;
+}
+
+// ── Nazvy zarizeni ────────────────────────────────────────────
+function getLabel(deviceId) {
+  return savedLabels[deviceId] ?? SENSOR_CONFIG[deviceId]?.label ?? deviceId;
+}
+
+function saveLabel(deviceId, label) {
+  savedLabels[deviceId] = label;
+  localStorage.setItem('rosnicka-labels', JSON.stringify(savedLabels));
+  const g = document.getElementById(`sensor-${deviceId}`);
+  if (g) g.querySelector('.sensor-name').textContent = label;
+}
+
+function startRename(deviceId, nameEl) {
+  const current = getLabel(deviceId);
+  const input   = document.createElement('input');
+  input.type      = 'text';
+  input.className = 'name-input';
+  input.value     = current;
+  input.maxLength = 32;
+
+  const commit = () => {
+    const val = input.value.trim() || current;
+    saveLabel(deviceId, val);
+    const span = document.createElement('span');
+    span.className   = 'card-name editable';
+    span.textContent = val;
+    span.addEventListener('click', () => startRename(deviceId, span));
+    input.replaceWith(span);
+  };
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter')  { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { input.value = current; input.blur(); }
+  });
+  input.addEventListener('blur', commit);
+  nameEl.replaceWith(input);
+  input.focus();
+  input.select();
 }
 
 // ── Drag helpers ─────────────────────────────────────────────
@@ -98,6 +144,9 @@ function toggleEditMode() {
     if (drag.target) drag.target.classList.remove('dragging');
     drag = { active: false, target: null, offsetX: 0, offsetY: 0 };
   }
+
+  // Prerender karet – prida/odebere tridu editable na card-name
+  for (const [id, data] of Object.entries(sensorData)) updateCard(id, data);
 }
 
 function initDrag(svg) {
@@ -202,7 +251,7 @@ function initFloorplan() {
       'text-anchor': 'middle',
       'font-family': 'system-ui, sans-serif',
       fill: '#374151',
-    }, cfg.label));
+    }, getLabel(deviceId)));
 
     svg.appendChild(g);
   }
@@ -222,16 +271,15 @@ function updateMarker(deviceId, data) {
   g.querySelector('.sensor-dot').setAttribute('fill', stale ? '#d97706' : color);
   g.querySelector('.sensor-temp').textContent = `${data.t.toFixed(1)}°C`;
   g.querySelector('.sensor-hum').textContent  = `${Math.round(data.h)} %`;
+  g.querySelector('.sensor-name').textContent = getLabel(deviceId);
 }
 
 // ── Sensor karta ─────────────────────────────────────────────
 function updateCard(deviceId, data) {
-  const cfg   = SENSOR_CONFIG[deviceId];
-  const label = cfg ? cfg.label : deviceId;
+  const label = getLabel(deviceId);
   const stale = Date.now() - data.ts > STALE_MS;
   const cls   = stale ? 'card-stale' : 'card-online';
 
-  // Odstran placeholder "Cekam na data..."
   const placeholder = document.querySelector('.no-data');
   if (placeholder) placeholder.remove();
 
@@ -243,10 +291,16 @@ function updateCard(deviceId, data) {
     document.getElementById('sensors-list').appendChild(card);
   }
 
+  // Neprerenderuj kdyz uzivatel prave pise nazev
+  if (card.querySelector('.name-input')) {
+    card.className = `sensor-card ${cls}`;
+    return;
+  }
+
   card.className = `sensor-card ${cls}`;
   card.innerHTML = `
     <div class="card-header">
-      <span class="card-name">${label}</span>
+      <span class="card-name${editMode ? ' editable' : ''}">${label}</span>
       <span class="card-id">${deviceId}</span>
     </div>
     <div class="card-values">
@@ -255,6 +309,12 @@ function updateCard(deviceId, data) {
     </div>
     <div class="card-time">Aktualizovano ${freshness(data.ts)}</div>
   `;
+
+  if (editMode) {
+    card.querySelector('.card-name').addEventListener('click', function () {
+      startRename(deviceId, this);
+    });
+  }
 }
 
 // ── Stavovy indikator ─────────────────────────────────────────
