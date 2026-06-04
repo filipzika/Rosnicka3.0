@@ -23,7 +23,7 @@ const SENSOR_CONFIG = {
 // ── Konfigurace MQTT ──────────────────────────────────────────
 const MQTT_BROKER    = 'wss://broker.emqx.io:8084/mqtt';
 const MQTT_TOPIC_SUB = 'rosnicka/+/sensors';
-const STALE_MS       = 60_000;   // po 60 s bez dat = stale
+const STALE_MS       = 1_200_000; // po 20 min bez dat = stale (deep sleep 15 min + rezie)
 const SVG_NS         = 'http://www.w3.org/2000/svg';
 
 // ── Stav ─────────────────────────────────────────────────────
