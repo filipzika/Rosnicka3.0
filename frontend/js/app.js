@@ -21,13 +21,19 @@ const SENSOR_CONFIG = {
 };
 
 // ── Konfigurace MQTT ──────────────────────────────────────────
-const MQTT_BROKER    = 'wss://broker.emqx.io:8084/mqtt';
-const MQTT_TOPIC_SUB = 'rosnicka/+/sensors';
-const STALE_MS       = 1_200_000; // po 20 min bez dat = stale (deep sleep 15 min + rezie)
-const SVG_NS         = 'http://www.w3.org/2000/svg';
+const MQTT_BROKER     = 'wss://broker.emqx.io:8084/mqtt';
+const MQTT_TOPIC_SUB  = 'rosnicka/+/sensors';
+const CONFIG_TOPIC_SUB = 'rosnicka/+/config';
+const STALE_MS        = 1_200_000; // po 20 min bez dat = stale (deep sleep 15 min + rezie)
+const SVG_NS          = 'http://www.w3.org/2000/svg';
+
+const configTopic = (deviceId) => `rosnicka/${deviceId}/config`;
+const cmdTopic    = (deviceId) => `rosnicka/${deviceId}/cmd`;
 
 // ── Stav ─────────────────────────────────────────────────────
 const sensorData = {};  // { device_id: { id, t, h, ts } }
+const sensorMode = {};  // { device_id: true=deepsleep | false=kontinualni }
+let   mqttClient = null;
 
 // Ulozene polohy markeru (pretezeno pres SENSOR_CONFIG)
 const savedPositions = (() => {
@@ -403,6 +409,9 @@ function updateCard(deviceId, data) {
     return;
   }
 
+  const isDeep = sensorMode[deviceId];          // true/false/undefined
+  const modeKnown = typeof isDeep === 'boolean';
+
   card.className = `sensor-card ${cls}`;
   card.innerHTML = `
     <div class="card-header">
@@ -417,6 +426,21 @@ function updateCard(deviceId, data) {
       <div class="value-hum">${Math.round(data.h)}<span class="unit"> %</span></div>
     </div>
     <div class="card-time">Aktualizovano ${freshness(data.ts)}</div>
+    <div class="card-mode">
+      <span class="mode-label">Rezim odesilani</span>
+      <div class="mode-toggle" role="group">
+        <button class="mode-opt ${isDeep === true ? 'active' : ''}" data-mode="deep">Uspora (15 min)</button>
+        <button class="mode-opt ${isDeep === false ? 'active' : ''}" data-mode="cont">Stale (15 s)</button>
+      </div>
+    </div>
+    ${editMode ? `
+    <div class="card-cmd">
+      <span class="mode-label">Akce zarizeni</span>
+      <div class="cmd-row">
+        <button class="btn-cmd" data-cmd="restart">Restart</button>
+        <button class="btn-cmd btn-cmd-danger" data-cmd="reset_wifi">Reset WiFi</button>
+      </div>
+    </div>` : ''}
   `;
 
   card.querySelector('.btn-card-edit').addEventListener('click', () => {
@@ -428,6 +452,56 @@ function updateCard(deviceId, data) {
       startRename(deviceId, this);
     });
   }
+
+  card.querySelectorAll('.mode-opt').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      setSensorMode(deviceId, btn.dataset.mode === 'deep');
+    });
+  });
+
+  card.querySelectorAll('.btn-cmd').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      sendCommand(deviceId, btn.dataset.cmd);
+    });
+  });
+}
+
+// ── Prepnuti rezimu zarizeni (publikuje retained config) ──────
+function setSensorMode(deviceId, deepsleep) {
+  if (!mqttClient || !mqttClient.connected) {
+    alert('Nelze prepnout rezim - nepripojeno k MQTT.');
+    return;
+  }
+  const payload = JSON.stringify({ deepsleep });
+  // retained=true: broker podrzi nastaveni i pro spici/odpojene ESP
+  mqttClient.publish(configTopic(deviceId), payload, { qos: 0, retain: true });
+  sensorMode[deviceId] = deepsleep;
+  if (sensorData[deviceId]) updateCard(deviceId, sensorData[deviceId]);
+}
+
+// ── Prikaz pro zarizeni (restart / reset wifi) ────────────────
+function sendCommand(deviceId, cmd) {
+  if (!mqttClient || !mqttClient.connected) {
+    alert('Nelze odeslat prikaz - nepripojeno k MQTT.');
+    return;
+  }
+  const label = getLabel(deviceId);
+  const texts = {
+    restart:    `Opravdu restartovat zarizeni "${label}"?`,
+    reset_wifi: `Opravdu smazat WiFi nastaveni "${label}"?\n\n`
+              + `Zarizeni se restartuje a spusti konfiguracni portal `
+              + `(WiFi "Rosnicka-3.0"), kde je nutne znovu nastavit sit.`,
+  };
+  if (!confirm(texts[cmd])) return;
+
+  // retained=true: i spici ESP prikaz provede pri pristim probuzeni.
+  // ESP si retained zpravu po vykonani sam smaze (zabrani zacykleni).
+  mqttClient.publish(cmdTopic(deviceId), JSON.stringify({ cmd }), { qos: 0, retain: true });
+
+  const note = sensorMode[deviceId] === true
+    ? ' Zarizeni je v rezimu uspory - provede se az pri pristim probuzeni (do 15 min).'
+    : '';
+  alert('Prikaz odeslan.' + note);
 }
 
 // ── Stavovy indikator ─────────────────────────────────────────
@@ -459,9 +533,12 @@ function connectMQTT() {
     connectTimeout: 12000,
   });
 
+  mqttClient = client;
+
   client.on('connect', () => {
     setStatus('online', 'Pripojeno');
-    client.subscribe(MQTT_TOPIC_SUB, { qos: 0 });
+    client.subscribe(MQTT_TOPIC_SUB,  { qos: 0 });
+    client.subscribe(CONFIG_TOPIC_SUB, { qos: 0 });
 
     // Zobraz ulozena data hned po pripojeni
     for (const [id, data] of Object.entries(sensorData)) {
@@ -472,8 +549,18 @@ function connectMQTT() {
 
   client.on('message', (topic, message) => {
     try {
-      const deviceId = topic.split('/')[1];
+      const parts    = topic.split('/');
+      const deviceId = parts[1];
+      const kind     = parts[2];   // "sensors" nebo "config"
       if (!deviceId) return;
+
+      if (kind === 'config') {
+        // Aktualni rezim zarizeni (retained zprava)
+        const cfg = JSON.parse(message.toString());
+        sensorMode[deviceId] = !!cfg.deepsleep;
+        if (sensorData[deviceId]) updateCard(deviceId, sensorData[deviceId]);
+        return;
+      }
 
       const data = JSON.parse(message.toString());
       // ts z ESP je Unix sekund (UTC) – prevedeme na ms; fallback = nyni
