@@ -22,7 +22,7 @@
     <section class="floorplan-section">
       <div class="section-header">
         <h2>Plan budovy</h2>
-        <button id="edit-btn" class="btn-edit">Upravit polohu</button>
+        <button id="edit-btn" class="btn-edit">Upravit</button>
       </div>
       <!--
         Upravte floor plan dle skutecne dispozice.
@@ -36,7 +36,13 @@
           Koupelna:380, 130, 120,  70
           Loznice:   0, 200, 500, 140
       -->
-      <p id="edit-hint" class="edit-hint">Pretahujte senzory na spravne misto &nbsp;·&nbsp; Kliknete na nazev karty pro prejmenování</p>
+      <p id="edit-hint" class="edit-hint">
+        Pretahujte senzory &nbsp;·&nbsp; Kliknete na nazev mistnosti pro prejmenovani &nbsp;·&nbsp; Kliknete ✏ na karte senzoru
+      </p>
+      <div class="floorplan-tools" id="floorplan-tools">
+        <button id="fp-upload-btn" class="btn-tool">&#128247; Nahrat obrazek planu</button>
+        <button id="fp-clear-btn"  class="btn-tool btn-tool-danger" style="display:none">&#10005; Odebrat vlastni plan</button>
+      </div>
       <div class="floorplan-wrap">
         <svg id="floorplan" viewBox="0 0 500 340" xmlns="http://www.w3.org/2000/svg">
 
@@ -56,12 +62,12 @@
           <!-- Vnejsi zeď -->
           <rect class="outer-wall" x="0" y="0" width="500" height="340"/>
 
-          <!-- Popisky místností -->
-          <text class="room-label" x="125" y="105">Obyvak</text>
-          <text class="room-label" x="375" y="70">Kuchyne</text>
-          <text class="room-label small" x="315" y="170">Chodba</text>
-          <text class="room-label small" x="440" y="170">Koupelna</text>
-          <text class="room-label" x="250" y="272">Loznice</text>
+          <!-- Popisky místností (data-room-id = klic pro localStorage) -->
+          <text class="room-label" data-room-id="0" x="125" y="105">Obyvak</text>
+          <text class="room-label" data-room-id="1" x="375" y="70">Kuchyne</text>
+          <text class="room-label small" data-room-id="2" x="315" y="170">Chodba</text>
+          <text class="room-label small" data-room-id="3" x="440" y="170">Koupelna</text>
+          <text class="room-label" data-room-id="4" x="250" y="272">Loznice</text>
 
           <!-- Senzory se pridaji dynamicky pres app.js -->
 
@@ -94,6 +100,9 @@
   </footer>
 
   <!-- MQTT.js z CDN -->
+  <!-- Plovouci input pro prejmenovani mistnosti na pudorysu -->
+  <input id="room-rename-input" type="text" class="room-rename-input" maxlength="24">
+
   <script src="https://unpkg.com/mqtt@5/dist/mqtt.min.js"></script>
   <script src="js/app.js"></script>
 </body>

@@ -35,9 +35,15 @@ const savedPositions = (() => {
   catch (_) { return {}; }
 })();
 
-// Ulozene nazvy zarizeni
+// Ulozene nazvy zarizeni (senzory)
 const savedLabels = (() => {
   try { return JSON.parse(localStorage.getItem('rosnicka-labels') || '{}'); }
+  catch (_) { return {}; }
+})();
+
+// Ulozene nazvy mistnosti na pudorysu
+const savedRoomLabels = (() => {
+  try { return JSON.parse(localStorage.getItem('rosnicka-room-labels') || '{}'); }
   catch (_) { return {}; }
 })();
 
@@ -112,6 +118,103 @@ function startRename(deviceId, nameEl) {
   input.select();
 }
 
+// ── Mistnosti na pudorysu ─────────────────────────────────────
+function initRoomLabels() {
+  document.querySelectorAll('[data-room-id]').forEach(el => {
+    const id = el.getAttribute('data-room-id');
+    if (savedRoomLabels[id]) el.textContent = savedRoomLabels[id];
+
+    el.addEventListener('click', () => {
+      if (!editMode) return;
+      startRoomRename(el);
+    });
+  });
+}
+
+function startRoomRename(labelEl) {
+  const roomId  = labelEl.getAttribute('data-room-id');
+  const current = labelEl.textContent;
+  const rect    = labelEl.getBoundingClientRect();
+  const input   = document.getElementById('room-rename-input');
+
+  input.value = current;
+  input.style.left    = Math.round((rect.left + rect.right) / 2 - 60) + 'px';
+  input.style.top     = Math.round(rect.top - 6) + 'px';
+  input.style.display = 'block';
+  input.focus();
+  input.select();
+
+  let done = false;
+  const commit = () => {
+    if (done) return;
+    done = true;
+    const val = input.value.trim() || current;
+    labelEl.textContent = val;
+    savedRoomLabels[roomId] = val;
+    localStorage.setItem('rosnicka-room-labels', JSON.stringify(savedRoomLabels));
+    input.style.display = 'none';
+  };
+
+  input.onblur    = commit;
+  input.onkeydown = (e) => {
+    if (e.key === 'Enter')  { e.preventDefault(); commit(); }
+    if (e.key === 'Escape') { input.value = current; commit(); }
+  };
+}
+
+// ── Vlastni obrazek pudorysu ──────────────────────────────────
+function setFloorplanImage(url) {
+  const svg = document.getElementById('floorplan');
+  let img = svg.querySelector('.floorplan-bg');
+  if (!img) {
+    img = svgEl('image', {
+      class: 'floorplan-bg',
+      x: '0', y: '0', width: '500', height: '340',
+      preserveAspectRatio: 'xMidYMid meet',
+    });
+    svg.insertBefore(img, svg.firstChild);
+  }
+  img.setAttribute('href', url);
+  svg.classList.add('custom-bg');
+  const clearBtn = document.getElementById('fp-clear-btn');
+  if (clearBtn) clearBtn.style.display = '';
+}
+
+function clearFloorplanImage() {
+  const svg = document.getElementById('floorplan');
+  svg.querySelector('.floorplan-bg')?.remove();
+  svg.classList.remove('custom-bg');
+  localStorage.removeItem('rosnicka-floorplan-img');
+  const clearBtn = document.getElementById('fp-clear-btn');
+  if (clearBtn) clearBtn.style.display = 'none';
+}
+
+function initFloorplanTools() {
+  document.getElementById('fp-upload-btn').addEventListener('click', () => {
+    const picker = document.createElement('input');
+    picker.type   = 'file';
+    picker.accept = 'image/*';
+    picker.onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const url = ev.target.result;
+        localStorage.setItem('rosnicka-floorplan-img', url);
+        setFloorplanImage(url);
+      };
+      reader.readAsDataURL(file);
+    };
+    picker.click();
+  });
+
+  document.getElementById('fp-clear-btn').addEventListener('click', clearFloorplanImage);
+
+  // Obnov ulozeny obrazek
+  const saved = localStorage.getItem('rosnicka-floorplan-img');
+  if (saved) setFloorplanImage(saved);
+}
+
 // ── Drag helpers ─────────────────────────────────────────────
 function getSvgPoint(svg, clientX, clientY) {
   const pt = svg.createSVGPoint();
@@ -138,12 +241,15 @@ function toggleEditMode() {
     hint.classList.add('visible');
   } else {
     svg.classList.remove('edit-mode');
-    btn.textContent = 'Upravit polohu';
+    btn.textContent = 'Upravit';
     btn.classList.remove('active');
     hint.classList.remove('visible');
     if (drag.target) drag.target.classList.remove('dragging');
     drag = { active: false, target: null, offsetX: 0, offsetY: 0 };
   }
+
+  // Zobraz/skryj nastroje pudorysu
+  document.getElementById('floorplan-tools').classList.toggle('visible', editMode);
 
   // Prerender karet – prida/odebere tridu editable na card-name
   for (const [id, data] of Object.entries(sensorData)) updateCard(id, data);
@@ -301,7 +407,10 @@ function updateCard(deviceId, data) {
   card.innerHTML = `
     <div class="card-header">
       <span class="card-name${editMode ? ' editable' : ''}">${label}</span>
-      <span class="card-id">${deviceId}</span>
+      <div class="card-actions">
+        <button class="btn-card-edit" title="Prejmenovat zarizeni">&#9998;</button>
+        <span class="card-id">${deviceId}</span>
+      </div>
     </div>
     <div class="card-values">
       <div class="value-temp">${data.t.toFixed(1)}<span class="unit"> °C</span></div>
@@ -309,6 +418,10 @@ function updateCard(deviceId, data) {
     </div>
     <div class="card-time">Aktualizovano ${freshness(data.ts)}</div>
   `;
+
+  card.querySelector('.btn-card-edit').addEventListener('click', () => {
+    startRename(deviceId, card.querySelector('.card-name'));
+  });
 
   if (editMode) {
     card.querySelector('.card-name').addEventListener('click', function () {
@@ -398,6 +511,8 @@ function startFreshnessTimer() {
 document.addEventListener('DOMContentLoaded', () => {
   loadSaved();
   initFloorplan();
+  initRoomLabels();
+  initFloorplanTools();
 
   const svg = document.getElementById('floorplan');
   initDrag(svg);
