@@ -79,7 +79,12 @@ bool configReceived   = false;              // dorazila config zprava?
 unsigned long lastSend = 0;                 // pro kontinualni rezim
 String pendingCmd     = "";                 // prikaz z webu k provedeni
 
-// ── Kontrola prikazu "reset" ze Serial monitoru ───────────────
+// ── Reset WiFi pres Serial monitor ────────────────────────────
+// Funguje bez internetu - staci USB-serial adapter (ten samy, kterym
+// nahravas firmware). Napis "reset" do 3s okna po startu.
+// Pozn.: Hlavni offline cesta pro prenastaveni site je captive portal,
+//        ktery se sam otevre kdyz se ESP nepripoji k ulozene WiFi
+//        (pripoj se mobilem na AP "Rosnicka-3.0", bez internetu).
 #define SERIAL_WINDOW_MS 3000
 void checkSerialReset() {
   Serial.println("Napis 'reset' do 3s pro vymazani WiFi nastaveni...");
